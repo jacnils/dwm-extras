@@ -1,0 +1,120 @@
+#!/bin/sh
+# dwm-utils
+# Because controlling dwm using shell scripts is based.
+# Licensed under GNU GPLv3.
+
+case "$RUNLAUNCHER" in
+"") RUNLAUNCHER=menuu # Run launcher to use (menuu, rofi, etc.) ;;
+esac
+
+GENERAL() {
+		case "$(printf "mfact +\nmfact -\nToggle Sticky\nToggle Bar\nToggle Fullscreen\nReset Layout/mfact\nReorganize Tags" | $RUNLAUNCHER -l 20 -p 'What do you want to do?')" in
+		"mfact +") libdwm --perform tiling_mfact_inc ;;
+		"mfact -") libdwm --perform tiling_mfact_dec ;;
+		"Toggle Sticky") libdwm --perform toggle_client_sticky ;;
+		"Toggle Bar") libdwm --perform toggle_bar ;;
+		"Toggle Fullscreen") libdwm --perform toggle_client_fullscr ;;
+		"Reorganize Tags") libdwm --perform tags_reorganize ;;
+		"Reset Layout/mfact") libdwm --perform reset_mfact && libdwm --perform reset_layout ;;
+		esac
+}
+
+OPT() {
+  MENUOPTS=$(printf "Layout\nReload .Xresources\nGeneral\nExit" | ${RUNLAUNCHER} -l 20 -p 'What do you want to do?')
+
+  case "$MENUOPTS" in
+  "Layout") ${0} layout "${2}" && exit 0 ;;
+  "Reload .Xresources") ${0} reloadcolors && exit 0 ;;
+  "General") ${0} general "${2}" && exit 0 ;;
+  "Exit") exit 0 ;;
+  esac
+}
+
+HELP() {
+  printf "dwm-utils - Control dwm using your terminal or menuu.\n"
+  printf "\nlayout         Let the user select a dwm layout"
+  printf "\nreloadcolors   Reload .Xresources"
+  printf "\nexec <signum>  Execute an fsignal signum"
+  printf "\nlist           List all available signums"
+  printf "\n"
+}
+
+L1_SYMBOL=" "
+L2_SYMBOL=" "
+L3_SYMBOL=" "
+L4_SYMBOL=" "
+L5_SYMBOL=" "
+L6_SYMBOL=" "
+L7_SYMBOL=" "
+L8_SYMBOL=" "
+L9_SYMBOL=" "
+L10_SYMBOL=" "
+L11_SYMBOL=" "
+L12_SYMBOL=" "
+L13_SYMBOL=" "
+L14_SYMBOL=" "
+L15_SYMBOL=" "
+
+L1="$(printf "%s: Tiling\n" "$L1_SYMBOL")"
+L2="$(printf "%s: Floating\n" "$L2_SYMBOL")"
+L3="$(printf "%s: Monocle\n" "$L3_SYMBOL")"
+L4="$(printf "%s: Grid\n" "$L4_SYMBOL")"
+L5="$(printf "%s: Deck\n" "$L5_SYMBOL")"
+L6="$(printf "%s: Centered Master\n" "$L6_SYMBOL")"
+L7="$(printf "%s: Tatami\n" "$L7_SYMBOL")"
+L8="$(printf "%s: Dwindle\n" "$L8_SYMBOL")"
+L9="$(printf "%s: Spiral\n" "$L9_SYMBOL")"
+L10="$(printf "%s: Bottom Stack (Vertical)\n" "$L10_SYMBOL")"
+L11="$(printf "%s: Bottom Stack (Horizontal)\n" "$L11_SYMBOL")"
+L12="$(printf "%s: Grid (Horizontal)\n" "$L12_SYMBOL")"
+L13="$(printf "%s: Dynamic Grid\n" "$L13_SYMBOL")"
+L14="$(printf "%s: Custom\n" "$L14_SYMBOL")"
+L15="$(printf "%s: Empty\n" "$L15_SYMBOL")"
+EXIT="Exit"
+SEPARATOR="------"
+LNEXT="Next Layout"
+LPREV="Previous Layout"
+SEXP="Enter S expression"
+
+case "$1" in
+"layout") SEL_LAYOUT=$(printf "Layouts\n------\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n------\n%s\n%s\n%s\n%s\n%s" \
+    "${L1}" "${L2}" "${L3}" "${L4}" "${L5}" "${L6}" "${L7}" "${L8}" "${L9}" "${L10}" "${L11}" "${L12}" "${L13}" "${L14}" "${L15}" "${LNEXT}" "${LPREV}" "${SEXP}" "${SEPARATOR}" "${EXIT}" | $RUNLAUNCHER -l 50 -p "Pick a layout: " -g 1) ;;
+"reloadcolors") libdwm --perform core_wm_reload ;;
+"list") head -n -1 /usr/share/dwm/example.signal ;;
+"help") HELP ;;
+"exec")
+		if [ "$2" = "" ]; then
+				exit 0
+		else
+				libdwm --rsig "$2"
+		fi ;;
+"h") HELP ;;
+"general") GENERAL ;;
+"") OPT "$@" ;;
+esac
+
+case "$SEL_LAYOUT" in
+"${EXIT}") exit 0 ;;
+"${LPREV}") libdwm --perform layout_cycle_down; exit ;;
+"${LNEXT}") libdwm --perform layout_cycle_up; exit ;;
+"${L1}") libdwm --perform layout_setlayout_tile; CURLT="${L1}" ;;
+"${L2}") libdwm --perform layout_setlayout_float; CURLT="${L2}" ;;
+"${L3}") libdwm --perform layout_setlayout_monocle; CURLT="${L3}" ;;
+"${L4}") libdwm --perform layout_setlayout_grid; CURLT="${L4}" ;;
+"${L5}") libdwm --perform layout_setlayout_deck; CURLT="${L5}" ;;
+"${L6}") libdwm --perform layout_setlayout_cm; CURLT="${L6}" ;;
+"${L7}") libdwm --perform layout_setlayout_tatami; CURLT="${L7}" ;;
+"${L8}") libdwm --perform layout_setlayout_dwindle; CURLT="${L8}" ;;
+"${L9}") libdwm --perform layout_setlayout_spiral; CURLT="${L9}" ;;
+"${L10}") libdwm --perform layout_setlayout_bs; CURLT="${L10}" ;;
+"${L11}") libdwm --perform layout_setlayout_hbs; CURLT="${L11}" ;;
+"${L12}") libdwm --perform layout_setlayout_hgrid; CURLT="${L12}" ;;
+"${L13}") libdwm --perform layout_setlayout_dgrid; CURLT="${L13}" ;;
+"${L14}") libdwm --perform layout_setlayout_custom; CURLT="${L14}" ;;
+"${L15}") libdwm --perform layout_setlayout_empty; CURLT="${L15}" ;;
+"Enter S expression") libdwm --perform layout_custom_express; exit ;;
+esac
+
+[ -n "${CURLT}" ] && command -v notify-send > /dev/null && notify-send "Layout" "${CURLT}"
+
+exit 0

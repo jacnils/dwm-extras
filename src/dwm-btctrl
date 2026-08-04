@@ -1,0 +1,125 @@
+#!/bin/sh
+# dwm-btctrl
+# Basic menuu/other run launcher Bluetooth manager written for dwm.
+# Licensed under GNU GPLv3.
+
+case "$RUNLAUNCHER" in
+"") RUNLAUNCHER=menuu ;;
+esac
+
+BINDIR="$(dirname $(command -v dwm-winnav))/"
+
+# Help
+HELP() {
+  printf "\n1. Turn on your device\n2. Make sure the bluetooth service is running. If it is not, start it.\n3. Press the pair button on your device\n4. Select your device in the list of devices. If it does not show up, select 'Refresh'.\n5. Select 'Pair' and then optionally 'Trust' to save it in the list of devices.\n6. And finally, select 'Connect' to connect the device." | $RUNLAUNCHER -l 12 -g 1 -p 'How to use'
+  $0 && exit 0
+}
+
+# Enable bluetooth and scan for devices
+ENABLE_BT() {
+  bluetoothctl power on > /dev/null && echo "Power: On"
+  bluetoothctl scan on & # Start scanning for devices
+  bluetoothctl devices | grep -q "No default controller" && printf "No Bluetooth controller was found.\n" && exit 1
+  USEROPT_1="$(printf "$(bluetoothctl devices | cut -d\  -f3-)\n------\nRefresh\nHelp\nExit" | $RUNLAUNCHER -l 12 -g 1 -p "Select a device")"
+
+  # Check what to do
+  case "$USEROPT_1" in
+  "") exit 0 ;;
+  "Refresh") ENABLE_BT ;;
+  "Exit") exit 0 ;;
+  "Help") HELP && $0 && exit 0 ;;
+  esac
+
+  SELDEVICE_MAC="$(bluetoothctl devices | grep "$USEROPT_1$" | awk '{ print $2 }')"
+  echo "$SELDEVICE_MAC"
+
+  # Check if a MAC was grabbed
+  case "$SELDEVICE_MAC" in
+  "") echo "Could not get MAC" && exit 1 ;;
+  esac
+}
+
+ENABLE_BT
+
+# List options for the device
+LIST_OPTIONS() {
+  USEROPT_2="$(echo -e "-- Options --\nConnect\nDisconnect\n-- Toggle --\nPair\nRemove\nTrust\nUntrust\n--\nExit\nHelp" | sed "s/-e //g" | $RUNLAUNCHER -g 1 -l 20 -p "What do you want to do with this device?" | awk '{ print $1 }')"
+}
+
+LIST_OPTIONS
+
+# Trust device
+TRUST() {
+  bluetoothctl trust $SELDEVICE_MAC && return 0 || return 1
+}
+
+# Pair device
+PAIR() {
+  bluetoothctl pair $SELDEVICE_MAC && return 0 || return 1
+}
+
+# Remove device
+REMOVE() {
+  bluetoothctl remove $SELDEVICE_MAC && return 0 || return 1
+}
+
+UNTRUST() {
+  bluetoothctl untrust $SELDEVICE_MAC && return 0 || return 1
+}
+
+# Connect
+CONNECT() {
+  if [ -e "/tmp/isconnected" ]; then
+		  NOTIFY_ALREADY_CONNECTED && exit 0
+  fi
+
+  bluetoothctl connect $SELDEVICE_MAC && isconnected=true
+  [ "$isconnected" = "true" ] && touch /tmp/isconnected && return 0 || return 1
+}
+
+# Disconnect
+DISCONNECT() {
+  rm -f /tmp/isconnected
+  bluetoothctl disconnect $SELDEVICE_MAC
+}
+
+# Notification when connecting
+NOTIFY_CONNECT() {
+  if [ "$isconnected" = "true" ]; then
+    notify-send " Connected to ${USEROPT_1}!"
+  else
+    notify-send " Failed to connect to ${USEROPT_1}! Is the device on and available?"
+  fi
+}
+
+# Notification when disconnecting
+NOTIFY_DISCONNECT() {
+  notify-send " Disconnected from ${USEROPT_1}!"
+}
+
+# Notification when removing
+NOTIFY_REMOVE() {
+  notify-send " Removed ${USEROPT_1}!"
+}
+
+# Notification when already connected
+NOTIFY_ALREADY_CONNECTED() {
+  notify-send " Device $USEROPT_1 is already connected!"
+}
+
+# Perform actions as per user choice
+PERFORM() {
+  case "$USEROPT_2" in
+  "Trust") TRUST && LIST_OPTIONS ;;
+  "Pair") PAIR && LIST_OPTIONS ;;
+  "Connect") CONNECT; NOTIFY_CONNECT ;;
+  "Disconnect") DISCONNECT && NOTIFY_DISCONNECT ;;
+  "Untrust") UNTRUST && LIST_OPTIONS ;;
+  "Remove") REMOVE && NOTIFY_REMOVE ;;
+  "Exit") exit 0 ;;
+  "Help") HELP ;;
+  "") exit 0 ;;
+  esac
+}
+
+PERFORM

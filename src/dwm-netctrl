@@ -1,0 +1,89 @@
+#!/bin/sh
+# dwm-netctrl
+# menuu/other run launcher GUI for iwd
+# Licensed under the GNU GPLv3 free software license.
+
+case "$RUNLAUNCHER" in
+"") RUNLAUNCHER=menuu ;;
+esac
+
+BINDIR="$(dirname $(command -v dwm-winnav))/"
+
+command -v iwctl > /dev/null || exit 1
+
+# Get the device used to connect.
+getdevice() {
+  seldevice=$1
+  if [ -e "$HOME/.local/share/seldevice" ]; then
+		  seldevice=$(cat $HOME/.local/share/seldevice)
+  else
+		  case "$1" in
+		  "") devices="$(printf "\n$(ip link)" | awk '{ print $2 }' | awk 'NR%2==0' | sed "s/://g")"
+		  seldevice=$(echo $devices | sed 's/ /\n/g' | $RUNLAUNCHER -p "What device do you want to connect with?" -l 10 -g 1) && echo $seldevice > $HOME/.local/share/seldevice ;;
+		  esac
+  fi
+
+  case "$seldevice" in
+  "") exit 0 ;;
+  esac
+}
+
+# connect to wifi
+connectwifi() {
+  # if args aren't disconnect, scan for networks
+  # if it is disconnect, disconnect
+  if [ "$INARGS" != "disconnect" ]; then
+		iwctl station $seldevice scan
+		network="$(printf "$(iwctl station $seldevice get-networks | sed -n 6,20p | sed "s|>||g" | awk '{ print $1 }')\nDisconnect\n------\nExit" | sed "s| |No networks found|g" | $RUNLAUNCHER -l 10 -g 1 -p "Select a network to connect to" | sed "s|------||g" | sed "s|No networks found| |g")"
+
+		case "$network" in
+		"") exit 0 ;;
+		"Disconnect") disconnect=true ;;
+		"Exit") exit 0 ;;
+		esac
+  else
+		disconnect=true
+  fi
+
+  if [ "$disconnect" != "true" ]; then
+		iwctl station $seldevice get-networks | grep "$network" > /dev/null || exit 1
+
+		connect_pass() {
+				PASSPHRASE=$(printf "\n" | $RUNLAUNCHER -p "This network is protected. Enter the passphrase." -l 1 -g 1 -P)
+				case "$PASSPHRASE" in
+				"") exit 0 ;;
+				esac
+
+				printf "$network\n" >> $HOME/.local/share/networks
+
+				iwctl station $seldevice connect $network -P $PASSPHRASE || connect_pass
+				if [ -e "${BINDIR}notify-send" ]; then
+						notify-send "  Connected to $network!"
+				fi
+				exit 0
+		}
+
+		connect_no_pass() {
+				iwctl station $seldevice connect $network && notify-send "  Connected to $network!" || exit
+		}
+  fi
+
+  disconnect() {
+		iwctl station $seldevice disconnect
+		if [ -e "${BINDIR}notify-send" ]; then
+				notify-send "  Disconnected from the network!"
+		fi
+		exit 0
+  }
+
+  if [ "$disconnect" != "true" ]; then
+		grep $network $HOME/.local/share/networks && connect_no_pass && exit 0
+		iwctl station $seldevice get-networks | grep psk && connect_pass && exit 0
+  else
+		disconnect
+  fi
+}
+
+INARGS="$1"
+getdevice "$@" && connectwifi "$@"
+pgrep -x status > /dev/null && pkill status && status &
