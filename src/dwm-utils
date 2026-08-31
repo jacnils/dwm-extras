@@ -8,7 +8,7 @@ case "$RUNLAUNCHER" in
 esac
 
 GENERAL() {
-		case "$(printf "mfact +\nmfact -\nToggle Sticky\nToggle Bar\nToggle Fullscreen\nReset Layout/mfact\nReorganize Tags" | $RUNLAUNCHER -l 20 -p 'What do you want to do?')" in
+		case "$(printf "mfact +\nmfact -\nToggle Sticky\nToggle Bar\nToggle Fullscreen\nReset Layout/mfact\nReorganize Tags\nRestart dwm" | $RUNLAUNCHER -l 20 -g 1 -p 'What do you want to do?')" in
 		"mfact +") libdwm --perform tiling_mfact_inc ;;
 		"mfact -") libdwm --perform tiling_mfact_dec ;;
 		"Toggle Sticky") libdwm --perform toggle_client_sticky ;;
@@ -16,11 +16,12 @@ GENERAL() {
 		"Toggle Fullscreen") libdwm --perform toggle_client_fullscr ;;
 		"Reorganize Tags") libdwm --perform tags_reorganize ;;
 		"Reset Layout/mfact") libdwm --perform reset_mfact && libdwm --perform reset_layout ;;
+		"Restart dwm") libdwm --perform core_wm_restart ;;
 		esac
 }
 
 OPT() {
-  MENUOPTS=$(printf "Layout\nReload .Xresources\nGeneral\nExit" | ${RUNLAUNCHER} -l 20 -p 'What do you want to do?')
+  MENUOPTS=$(printf "Layout\nReload .Xresources\nGeneral\nExit" | ${RUNLAUNCHER} -l 20 -p 'What do you want to do?' -g 1)
 
   case "$MENUOPTS" in
   "Layout") ${0} layout "${2}" && exit 0 ;;
